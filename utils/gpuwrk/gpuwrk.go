@@ -91,16 +91,16 @@ func searchGpusWithRegex() ([]GPUstruct, error) {
 		}
 
 		panddId := config.MRgxKit.FindIntIds.FindAllString(v, -1)
-		if len(panddId) < 2 {
+		if len(panddId) < 1 {
 			mlog.LogInfo("warn: can't search GPU - len(panddId) < 2; panddId: " + strings.Join(panddId, ", ") + "; v: " + v)
 			continue
 		}
 
-		platformId, err := strconv.Atoi(strings.Replace(panddId[0], "#", "", -1))
-		if err != nil {
-			return gpusArray, errors.New("can't get platformId: " + err.Error())
-		}
-		deviceId, err := strconv.Atoi(strings.Replace(panddId[1], "#", "", -1))
+		// platformId, err := strconv.Atoi(strings.Replace(panddId[0], "#", "", -1))
+		// if err != nil {
+		// 	return gpusArray, errors.New("can't get platformId: " + err.Error())
+		// }
+		deviceId, err := strconv.Atoi(strings.Replace(panddId[0], "#", "", -1))
 		if err != nil {
 			return gpusArray, errors.New("can't get deviceId: " + err.Error())
 		}
@@ -110,7 +110,7 @@ func searchGpusWithRegex() ([]GPUstruct, error) {
 			GPUstruct{
 				GpuId:      deviceId,
 				Model:      gpuModel,
-				PlatformId: platformId,
+				PlatformId: 0,
 			},
 		)
 	}

@@ -131,10 +131,10 @@ func Configure() {
 	// --------
 
 	// -------- set Release for Win
-	MinerGetter.WinSettings.FileName = "minertools-opencl-windows-x86-64.zip"
+	MinerGetter.WinSettings.FileName = "minertools-cuda-windows-x86-64.zip"
 	MinerGetter.WinSettings.ReleaseURL = "https://ton.ninja/miners/" +
 		MinerGetter.WinSettings.FileName
-	MinerGetter.WinSettings.ExecutableName = "pow-miner-opencl.exe"
+	MinerGetter.WinSettings.ExecutableName = "pow-miner-cuda.exe"
 	// --------
 
 	// -------- set Release for Mac

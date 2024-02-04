@@ -22,30 +22,30 @@ along with miningPoolCli.  If not, see <https://www.gnu.org/licenses/>.
 package getminer
 
 import (
+	"bytes"
 	"miningPoolCli/config"
+	"miningPoolCli/utils/api"
 	"miningPoolCli/utils/files"
 	"miningPoolCli/utils/helpers"
 	"miningPoolCli/utils/mlog"
 	"os"
-
-	"github.com/cavaliercoder/grab"
 )
 
 func GetMiner() {
-	var minerReleaseURL, minerFileName, executableName string
+	var minerReleaseURL, executableName string
 
 	switch config.OS.OperatingSystem {
 	case config.OSType.Linux:
 		minerReleaseURL = config.MinerGetter.UbuntuSettings.ReleaseURL
-		minerFileName = config.MinerGetter.UbuntuSettings.FileName
+		// minerFileName = config.MinerGetter.UbuntuSettings.FileName
 		executableName = config.MinerGetter.UbuntuSettings.ExecutableName
 	case config.OSType.Win:
 		minerReleaseURL = config.MinerGetter.WinSettings.ReleaseURL
-		minerFileName = config.MinerGetter.WinSettings.FileName
+		// minerFileName = config.MinerGetter.WinSettings.FileName
 		executableName = config.MinerGetter.WinSettings.ExecutableName
 	case config.OSType.Macos:
 		minerReleaseURL = config.MinerGetter.MacSettings.ReleaseURL
-		minerFileName = config.MinerGetter.MacSettings.FileName
+		// minerFileName = config.MinerGetter.MacSettings.FileName
 		executableName = config.MinerGetter.MacSettings.ExecutableName
 	}
 
@@ -56,24 +56,24 @@ func GetMiner() {
 		files.RemovePath(config.MinerGetter.MinerDirectory)
 	}
 
-	getFileResp, err := grab.Get(".", minerReleaseURL)
+	getFileResp, err := api.GetReqAttempt(minerReleaseURL)
 	if err != nil {
 		mlog.LogFatalStackError(err)
 	}
 
-	if minerFileName != "" {
-		if helpers.StringInSlice(minerFileName, files.GetDir(".")) {
-			mlog.LogOk("Download completed \"" + getFileResp.Filename + "\"")
-		} else {
-			mlog.LogFatal("Something went wrong. " + minerFileName + " not found in this catalog")
-		}
-	} else {
-		if helpers.StringInSlice(getFileResp.Filename, files.GetDir(".")) {
-			mlog.LogOk("Download completed \"" + getFileResp.Filename + "\"")
-		} else {
-			mlog.LogFatal("Something went wrong. " + getFileResp.Filename + " not found in this catalog")
-		}
-	}
+	// if minerFileName != "" {
+	// 	if helpers.StringInSlice(minerFileName, files.GetDir(".")) {
+	// 		mlog.LogOk("Download completed \"" + getFileResp.Filename + "\"")
+	// 	} else {
+	// 		mlog.LogFatal("Something went wrong. " + minerFileName + " not found in this catalog")
+	// 	}
+	// } else {
+	// 	if helpers.StringInSlice(getFileResp.Filename, files.GetDir(".")) {
+	// 		mlog.LogOk("Download completed \"" + getFileResp.Filename + "\"")
+	// 	} else {
+	// 		mlog.LogFatal("Something went wrong. " + getFileResp.Filename + " not found in this catalog")
+	// 	}
+	// }
 
 	if err := os.Mkdir(config.MinerGetter.MinerDirectory, 0755); err != nil {
 		mlog.LogFatal(err.Error())
@@ -81,14 +81,15 @@ func GetMiner() {
 
 	switch config.OS.OperatingSystem {
 	case config.OSType.Linux:
-		r, err := os.Open(minerFileName)
-		if err != nil {
-			mlog.LogFatal("error while opening '" + minerFileName + "'; " + err.Error())
-		}
+		// r, err := os.Open(minerFileName)
+		// if err != nil {
+		// 	mlog.LogFatal("error while opening '" + minerFileName + "'; " + err.Error())
+		// }
 
-		files.ExtractTarGz(r, config.MinerGetter.MinerDirectory)
+		buff := bytes.NewBuffer(getFileResp)
+		files.ExtractTarGz(buff, config.MinerGetter.MinerDirectory)
 	case config.OSType.Win:
-		files.ExtractZip(minerFileName, config.MinerGetter.MinerDirectory)
+		files.ExtractZip(bytes.NewReader(getFileResp), int64(len(getFileResp)), config.MinerGetter.MinerDirectory)
 	case config.OSType.Macos:
 		files.CopyFile(executableName, config.MinerGetter.MinerDirectory+"/"+executableName)
 	}
@@ -97,11 +98,11 @@ func GetMiner() {
 		os.Chmod(config.MinerGetter.MinerDirectory+"/"+executableName, 0700)
 	}
 
-	if minerFileName != "" {
-		files.RemovePath(minerFileName)
-	} else {
-		files.RemovePath(getFileResp.Filename)
-	}
+	// if minerFileName != "" {
+	// 	files.RemovePath(minerFileName)
+	// } else {
+	// 	files.RemovePath(getFileResp.Filename)
+	// }
 
 	if helpers.StringInSlice(executableName, files.GetDir(config.MinerGetter.MinerDirectory)) {
 		mlog.LogOk("The miner is saved in the directory: " + "\"" + config.MinerGetter.MinerDirectory + "\"")
