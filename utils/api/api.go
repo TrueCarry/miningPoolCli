@@ -129,9 +129,8 @@ func SendHexBocToServer(hexData string, seed string, taskId string) (SendHexBocT
 
 	var results SendHexBocToServerResponse
 	if bodyResp == nil {
-		return results, nil
+		return results, errors.New("no response body")
 	}
-
 
 	if err := json.Unmarshal(bodyResp, &results); err != nil {
 		mlog.LogError(err.Error())
