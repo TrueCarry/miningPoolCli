@@ -84,12 +84,16 @@ type GetTasksResponse struct {
 	ServerResponse
 }
 
-func GetTasks() GetTasksResponse {
+func GetTasks() (GetTasksResponse, error) {
 	jsonData, _ := json.Marshal(map[string]string{})
 	bodyResp := SendPostJsonReq(
 		jsonData,
 		config.ServerSettings.MiningPoolServerURL+"/get",
 	)
+
+	if bodyResp == nil {
+		return GetTasksResponse{}, errors.New("no resp")
+	}
 
 	var results GetTasksResponse
 
@@ -99,7 +103,7 @@ func GetTasks() GetTasksResponse {
 		mlog.LogError("bodyResp: " + string(bodyResp))
 	}
 
-	return results
+	return results, nil
 }
 
 type SendHexBocToServerResponse struct {
@@ -124,6 +128,11 @@ func SendHexBocToServer(hexData string, seed string, taskId string) (SendHexBocT
 	)
 
 	var results SendHexBocToServerResponse
+	if bodyResp == nil {
+		return results, nil
+	}
+
+
 	if err := json.Unmarshal(bodyResp, &results); err != nil {
 		mlog.LogError(err.Error())
 		mlog.LogError("Can not unmarshal JSON SendHexBocToServer()")

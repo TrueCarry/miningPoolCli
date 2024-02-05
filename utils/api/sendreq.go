@@ -123,9 +123,9 @@ func SendPostJsonReq(jsonData []byte, serverUrl string) []byte {
 
 		break
 	}
-	if body == nil {
-		mlog.LogFatal("Attempts to send a request have yielded no results :(")
-	}
+	// if body == nil {
+	// 	mlog.LogFatal("Attempts to send a request have yielded no results :(")
+	// }
 
 	return body
 }
