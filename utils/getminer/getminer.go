@@ -22,13 +22,14 @@ along with miningPoolCli.  If not, see <https://www.gnu.org/licenses/>.
 package getminer
 
 import (
+	"github.com/cavaliergopher/grab/v3"
+
+	"os"
+
 	"miningPoolCli/config"
 	"miningPoolCli/utils/files"
 	"miningPoolCli/utils/helpers"
 	"miningPoolCli/utils/mlog"
-	"os"
-
-	"github.com/cavaliercoder/grab"
 )
 
 func GetMiner() {
