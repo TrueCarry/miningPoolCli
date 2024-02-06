@@ -24,6 +24,7 @@ package initp
 import (
 	"flag"
 	"fmt"
+	"log"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/api"
 	"miningPoolCli/utils/getminer"
@@ -80,26 +81,57 @@ func InitProgram() []gpuwrk.GPUstruct {
 
 	switch config.OS.OperatingSystem {
 	case config.OSType.Linux:
-		config.MinerGetter.CurrExecName = config.MinerGetter.UbuntuSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.UbuntuSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.UbuntuSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = "./"
 	case config.OSType.Win:
-		config.MinerGetter.CurrExecName = config.MinerGetter.WinSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.WinSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.WinSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = ""
 	case config.OSType.Macos:
-		config.MinerGetter.CurrExecName = config.MinerGetter.MacSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.MacSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.MacSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = "./"
 	}
-
-	config.MinerGetter.StartPath = filepath.Join(
-		config.MinerGetter.ExecNamePref,
-		config.MinerGetter.MinerDirectory,
-		config.MinerGetter.CurrExecName,
-	)
 
 	api.Auth()
 
 	getminer.GetMiner()
-	gpusArray := gpuwrk.SearchGpus()
+
+	var gpusArray []gpuwrk.GPUstruct
+	if config.MinerGetter.CurrExecNameCuda != "" {
+		if gpusArray = gpuwrk.SearchGpusCuda(filepath.Join(
+			config.MinerGetter.ExecNamePref,
+			config.MinerGetter.MinerDirectory,
+			config.MinerGetter.CurrExecNameCuda,
+		)); len(gpusArray) > 0 {
+			config.MinerGetter.StartPath = filepath.Join(
+				config.MinerGetter.ExecNamePref,
+				config.MinerGetter.MinerDirectory,
+				config.MinerGetter.CurrExecNameCuda,
+			)
+		}
+	}
+
+	if len(gpusArray) < 1 && config.MinerGetter.CurrExecNameOpenCL != "" {
+		if gpusArray = gpuwrk.SearchGpusOpenCL(filepath.Join(
+			config.MinerGetter.ExecNamePref,
+			config.MinerGetter.MinerDirectory,
+			config.MinerGetter.CurrExecNameOpenCL,
+		)); len(gpusArray) > 0 {
+			config.MinerGetter.StartPath = filepath.Join(
+				config.MinerGetter.ExecNamePref,
+				config.MinerGetter.MinerDirectory,
+				config.MinerGetter.CurrExecNameOpenCL,
+			)
+		}
+	}
+	// else if gpusArray =
+
+	if len(gpusArray) < 1 {
+		log.Fatal("Gpus Not Found")
+		// return gpusArray, errors.New("no any GPUs found")
+	}
 
 	mlog.LogPass()
 	gpuwrk.LogGpuList(gpusArray)

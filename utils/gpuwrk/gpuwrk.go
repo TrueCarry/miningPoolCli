@@ -65,8 +65,8 @@ func LogGpuList(gpus []GPUstruct) {
 	}
 }
 
-func searchGpusWithRegex() ([]GPUstruct, error) {
-	cmd := exec.Command(config.MinerGetter.StartPath)
+func searchGpusWithRegexCuda(execStr string) ([]GPUstruct, error) {
+	cmd := exec.Command(execStr)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -115,15 +115,80 @@ func searchGpusWithRegex() ([]GPUstruct, error) {
 		)
 	}
 
-	if len(gpusArray) < 1 {
-		return gpusArray, errors.New("no any GPUs found")
-	}
+	// if len(gpusArray) < 1 {
+	// 	return gpusArray, errors.New("no any GPUs found")
+	// }
 
 	return gpusArray, nil
 }
 
-func SearchGpus() []GPUstruct {
-	nvidiaGpus, err := searchGpusWithRegex()
+func SearchGpusCuda(execStr string) []GPUstruct {
+	nvidiaGpus, err := searchGpusWithRegexCuda(execStr)
+	if err != nil {
+		mlog.LogFatal(err.Error())
+	}
+	return nvidiaGpus
+}
+
+func searchGpusWithRegexOpenCL(execStr string) ([]GPUstruct, error) {
+	cmd := exec.Command(execStr)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		mlog.LogFatalStackError(err)
+	}
+	cmd.Wait()
+
+	matches := config.MRgxKit.FindGPUPat.FindAllString(stderr.String(), -1)
+
+	var gpusArray []GPUstruct
+
+	for _, v := range matches {
+		gpuModel := strings.TrimSpace(
+			config.MRgxKit.ReplaceEndGPU.ReplaceAllString(config.MRgxKit.ReplaceStartGPU.ReplaceAllString(v, ""), ""),
+		)
+
+		// skip for integrated intel GPU
+		if strings.Contains(strings.ToLower(gpuModel), "intel") {
+			continue
+		}
+
+		panddId := config.MRgxKit.FindIntIds.FindAllString(v, -1)
+		if len(panddId) < 2 {
+			mlog.LogInfo("warn: can't search GPU - len(panddId) < 2; panddId: " + strings.Join(panddId, ", ") + "; v: " + v)
+			continue
+		}
+
+		platformId, err := strconv.Atoi(strings.Replace(panddId[0], "#", "", -1))
+		if err != nil {
+			return gpusArray, errors.New("can't get platformId: " + err.Error())
+		}
+		deviceId, err := strconv.Atoi(strings.Replace(panddId[1], "#", "", -1))
+		if err != nil {
+			return gpusArray, errors.New("can't get deviceId: " + err.Error())
+		}
+
+		gpusArray = append(
+			gpusArray,
+			GPUstruct{
+				GpuId:      deviceId,
+				Model:      gpuModel,
+				PlatformId: platformId,
+			},
+		)
+	}
+
+	// if len(gpusArray) < 1 {
+	// 	return gpusArray, errors.New("no any GPUs found")
+	// }
+
+	return gpusArray, nil
+}
+
+func SearchGpusOpenCL(execStr string) []GPUstruct {
+	nvidiaGpus, err := searchGpusWithRegexOpenCL(execStr)
 	if err != nil {
 		mlog.LogFatal(err.Error())
 	}

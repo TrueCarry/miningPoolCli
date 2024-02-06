@@ -35,17 +35,18 @@ type colors struct {
 type minerGetter struct {
 	MinerDirectory string
 	UbuntuSettings struct {
-		ReleaseURL, FileName, ExecutableName string
+		ReleaseURL, FileName, ExecutableName, ExecutableNameCuda string
 	}
 	WinSettings struct {
-		ReleaseURL, FileName, ExecutableName string
+		ReleaseURL, FileName, ExecutableName, ExecutableNameCuda string
 	}
 	MacSettings struct {
-		ReleaseURL, FileName, ExecutableName string
+		ReleaseURL, FileName, ExecutableName, ExecutableNameCuda string
 	}
-	ExecNamePref string // "./" in linux; "" in win
-	CurrExecName string // current ExecutableName (depends on OS)
-	StartPath    string // depends on OS
+	ExecNamePref       string // "./" in linux; "" in win
+	CurrExecNameOpenCL string // current ExecutableName (depends on OS)
+	CurrExecNameCuda   string // current ExecutableName (depends on OS)
+	StartPath          string // depends on OS
 }
 
 type os struct {
@@ -121,20 +122,22 @@ func Configure() {
 	}
 	// --------
 
-	MinerGetter.MinerDirectory = "__miner__"
+	MinerGetter.MinerDirectory = "miner_blob"
 
 	// -------- set Release for Ubuntu
 	MinerGetter.UbuntuSettings.FileName = "minertools-cuda-ubuntu-18.04-x86-64.tar.gz"
 	MinerGetter.UbuntuSettings.ReleaseURL = "https://ton.ninja/miners/" +
 		MinerGetter.UbuntuSettings.FileName
-	MinerGetter.UbuntuSettings.ExecutableName = "pow-miner-cuda"
+	MinerGetter.UbuntuSettings.ExecutableName = "pow-miner-opencl"
+	MinerGetter.UbuntuSettings.ExecutableNameCuda = "pow-miner-cuda"
 	// --------
 
 	// -------- set Release for Win
 	MinerGetter.WinSettings.FileName = "minertools-cuda-windows-x86-64.zip"
 	MinerGetter.WinSettings.ReleaseURL = "https://ton.ninja/miners/" +
 		MinerGetter.WinSettings.FileName
-	MinerGetter.WinSettings.ExecutableName = "pow-miner-cuda.exe"
+	MinerGetter.WinSettings.ExecutableName = "pow-miner-opencl.exe"
+	MinerGetter.WinSettings.ExecutableNameCuda = "pow-miner-cuda.exe"
 	// --------
 
 	// -------- set Release for Mac
