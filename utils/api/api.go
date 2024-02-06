@@ -24,6 +24,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/mlog"
 )
@@ -41,18 +42,23 @@ type AuthResponse struct {
 	ServerResponse
 }
 
-func Auth() {
+func Auth() bool {
 	jsonData, _ := json.Marshal(map[string]string{"token": config.ServerSettings.AuthKey})
 	bodyResp := SendPostJsonReq(
 		jsonData,
 		config.ServerSettings.MiningPoolServerURL+"/token",
 	)
 
+	if bodyResp == nil {
+		return false
+	}
+
 	var serverResp AuthResponse
 
 	err := json.Unmarshal(bodyResp, &serverResp)
 	if err != nil {
-		mlog.LogFatalStackError(err)
+		mlog.LogError(fmt.Sprintf("Auth json error %e", err))
+		return false
 	}
 
 	if serverResp.User.Id != 0 {
@@ -69,6 +75,7 @@ func Auth() {
 		mlog.LogFatal("Auth failed; invalid token")
 	}
 	mlog.LogPass()
+	return true
 }
 
 type Task struct {

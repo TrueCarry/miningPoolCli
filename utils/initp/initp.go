@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func InitProgram() []gpuwrk.GPUstruct {
@@ -94,7 +95,13 @@ func InitProgram() []gpuwrk.GPUstruct {
 		config.MinerGetter.ExecNamePref = "./"
 	}
 
-	api.Auth()
+	for {
+		if ok := api.Auth(); ok {
+			break
+		}
+		mlog.LogInfo("Auth attempt no successfull, waiting 5 seconds")
+		time.Sleep(time.Second * 5)
+	}
 
 	getminer.GetMiner()
 
