@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/rand"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/api"
@@ -72,6 +73,7 @@ func startTask(i int, task api.Task) {
 		done = true
 
 		out := gpuGoroutines[i].ProcStderr.String()
+		log.Println("out", out)
 		lines := strings.Split(out, "\n")
 		if len(lines) > 3 {
 			if strings.Contains(lines[len(lines)-3], "FOUND!") {
@@ -122,14 +124,17 @@ func startTask(i int, task api.Task) {
 	go func() {
 		for !done {
 			// Task no longer in list, kill
-			if checkTaskAlreadyFound(task.Id) {
+			existing := checkTaskAlreadyFound(task.Id)
+			if existing == nil {
+				// log.Println("Task expired")
 				killedByNotActual = true
 				if err := cmd.Process.Kill(); err != nil {
 					mlog.LogError(err.Error())
 				}
 				break
 				// Task expired, kill
-			} else if task.Expire < time.Now().Unix() {
+			} else if existing.Expire < time.Now().Unix() {
+				// log.Println("Task expired", task.Expire, time.Now().Unix(), time.Now().Unix()-task.Expire)
 				killedByNotActual = true
 				if err := cmd.Process.Kill(); err != nil {
 					mlog.LogError(err.Error())
@@ -143,13 +148,13 @@ func startTask(i int, task api.Task) {
 	<-unblockFunc
 }
 
-func checkTaskAlreadyFound(checkId int) bool {
+func checkTaskAlreadyFound(checkId int) *api.Task {
 	for _, task := range globalTasks {
 		if task.Id == checkId {
-			return false
+			return &task
 		}
 	}
-	return true
+	return nil
 }
 
 func syncTasks(firstSync *chan struct{}) {
