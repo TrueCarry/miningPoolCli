@@ -80,7 +80,11 @@ func startTask(i int, task api.Task) {
 				if !killedByNotActual {
 					go func() {
 						lineWithProof := lines[len(lines)-2]
-						hexData, err := hex.DecodeString(lineWithProof)
+						if len(lineWithProof) < 246 {
+							mlog.LogError("Decoding proof len: " + strconv.Itoa(len(lineWithProof)))
+							return
+						}
+						hexData, err := hex.DecodeString(lineWithProof[:246])
 						if err != nil {
 							mlog.LogError("Decoding proof error: " + strconv.Itoa(len(lineWithProof)) + " " + err.Error())
 							return
