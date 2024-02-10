@@ -1,8 +1,8 @@
 # --------------------- GO ---------------------
 # Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
+# *.exe
+# *.exe~
+# *.dll
 *.so
 *.dylib
 *.boc
@@ -60,3 +60,4 @@ Temporary Items
 
 
 
+.vscode/launch.json

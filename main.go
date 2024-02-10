@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/api"
-	"miningPoolCli/utils/boc"
-	"miningPoolCli/utils/files"
 	"miningPoolCli/utils/gpuwrk"
 	"miningPoolCli/utils/helpers"
 	"miningPoolCli/utils/initp"
@@ -16,6 +16,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 var gpuGoroutines []gpuwrk.GpuGoroutine
@@ -24,11 +27,17 @@ var globalTasks []api.Task
 func startTask(i int, task api.Task) {
 	// gpuGoroutines[i].startTimestamp = time.Now().Unix()
 
-	mineResultFilename := "mined_" + strconv.Itoa(task.Id) + ".boc"
-	pathToBoc := config.MinerGetter.MinerDirectory + "/" + mineResultFilename
+	if task.Expire < time.Now().Unix() {
+		if gpuGoroutines[i].KeepAlive {
+			enableTask(i)
 
+		}
+		return
+	}
 	minerArgs := []string{
-		"-vv",
+		// "-vv",
+		// "-V",
+		// "-B",
 		"-g" + strconv.Itoa(gpuGoroutines[i].GpuData.GpuId),
 		"-p" + strconv.Itoa(gpuGoroutines[i].GpuData.PlatformId),
 		"-F" + strconv.Itoa(config.StaticBeforeMinerSettings.BoostFactor),
@@ -38,10 +47,10 @@ func startTask(i int, task api.Task) {
 		helpers.ConvertHexData(task.Seed),
 		helpers.ConvertHexData(task.Complexity),
 		config.StaticBeforeMinerSettings.Iterations,
-		task.Giver,
-		pathToBoc,
+		// task.Giver,
+		// pathToBoc,
 	}
-	cmd := exec.Command(config.MinerGetter.StartPath, minerArgs...)
+	cmd := exec.Command(gpuGoroutines[i].GpuData.StartPath, minerArgs...)
 
 	gpuGoroutines[i].ProcStderr.Reset()
 	cmd.Stderr = &gpuGoroutines[i].ProcStderr
@@ -62,22 +71,50 @@ func startTask(i int, task api.Task) {
 		cmd.Wait()
 		done = true
 
-		if helpers.StringInSlice(mineResultFilename, files.GetDir(config.MinerGetter.MinerDirectory)) {
-			// found
-			bocFileInHex, _ := boc.ReadBocFileToHex(pathToBoc)
-			if !killedByNotActual {
-				go func() {
-					bocServerResp, err := api.SendHexBocToServer(bocFileInHex, task.Seed, strconv.Itoa(task.Id))
-					if err == nil {
-						if bocServerResp.Data == "Found" && bocServerResp.Status == "ok" {
-							logreport.ShareFound(gpuGoroutines[i].GpuData.Model, gpuGoroutines[i].GpuData.GpuId, task.Id)
-						} else {
-							logreport.ShareServerError(task, bocServerResp, gpuGoroutines[i].GpuData.GpuId)
+		out := gpuGoroutines[i].ProcStderr.String()
+		lines := strings.Split(out, "\n")
+		if len(lines) > 3 {
+			if strings.Contains(lines[len(lines)-3], "FOUND!") {
+				if !killedByNotActual {
+					go func() {
+						lineWithProof := lines[len(lines)-2]
+						if len(lineWithProof) < 246 {
+							mlog.LogError("Decoding proof len: " + strconv.Itoa(len(lineWithProof)))
+							return
 						}
-					}
-				}()
+						hexData, err := hex.DecodeString(lineWithProof[:246])
+						if err != nil {
+							mlog.LogError("Decoding proof error: " + strconv.Itoa(len(lineWithProof)) + " " + err.Error())
+							return
+						}
+
+						body := cell.BeginCell().MustStoreBinarySnake(hexData[2:]).EndCell()
+
+						giverAddress, _ := address.ParseAddr(task.Giver)
+						addrData := giverAddress.Data()
+						extCell := cell.BeginCell().
+							MustStoreUInt(0x44, 7).
+							MustStoreUInt(uint64(giverAddress.Workchain()), 8). // giver workchain
+							MustStoreBinarySnake(addrData).
+							MustStoreUInt(1, 6). // amount grams
+							MustStoreRef(body).
+							EndCell()
+
+						bocServerResp, err := api.SendHexBocToServer(hex.EncodeToString(extCell.ToBOC()), task.Seed, strconv.Itoa(task.Id))
+						if err == nil {
+							if bocServerResp.Data == "Found" && bocServerResp.Status == "ok" {
+								logreport.ShareFound(gpuGoroutines[i].GpuData.Model, gpuGoroutines[i].GpuData.GpuId, task.Id)
+							} else {
+								logreport.ShareServerError(task, bocServerResp, gpuGoroutines[i].GpuData.GpuId)
+							}
+						}
+					}()
+				}
 			}
-			files.RemovePath(pathToBoc)
+		} else {
+			mlog.LogInfo(fmt.Sprintf(
+				"Working, no shares found. Everythging is OK",
+			))
 		}
 
 		if gpuGoroutines[i].KeepAlive {
@@ -89,40 +126,45 @@ func startTask(i int, task api.Task) {
 
 	go func() {
 		for !done {
-			if checkTaskAlreadyFound(task.Id) {
+			// Task no longer in list, kill
+			existing := checkTaskAlreadyFound(task.Id)
+			if existing == nil {
+				// log.Println("Task expired")
 				killedByNotActual = true
 				if err := cmd.Process.Kill(); err != nil {
 					mlog.LogError(err.Error())
 				}
 				break
-			} else if task.Expire < time.Now().Unix() {
+				// Task expired, kill
+			} else if existing.Expire < time.Now().Unix() {
+				// log.Println("Task expired", task.Expire, time.Now().Unix(), time.Now().Unix()-task.Expire)
 				killedByNotActual = true
 				if err := cmd.Process.Kill(); err != nil {
 					mlog.LogError(err.Error())
 				}
 				break
 			}
-			time.Sleep(10 * time.Microsecond)
+			time.Sleep(64 * time.Millisecond)
 		}
 	}()
 
 	<-unblockFunc
 }
 
-func checkTaskAlreadyFound(checkId int) bool {
+func checkTaskAlreadyFound(checkId int) *api.Task {
 	for _, task := range globalTasks {
 		if task.Id == checkId {
-			return false
+			return &task
 		}
 	}
-	return true
+	return nil
 }
 
 func syncTasks(firstSync *chan struct{}) {
 	var firstSyncIsOk bool
 	for {
-		if t := api.GetTasks().Tasks; len(t) > 0 {
-			globalTasks = t
+		if v, err := api.GetTasks(); err == nil && len(v.Tasks) > 0 {
+			globalTasks = v.Tasks
 			if !firstSyncIsOk {
 				*firstSync <- struct{}{}
 				firstSyncIsOk = true
@@ -163,7 +205,7 @@ func main() {
 	}
 
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 		gpuwrk.CalcHashrate(&gpuGoroutines)
 	}
 }

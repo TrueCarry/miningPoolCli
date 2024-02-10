@@ -24,6 +24,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/mlog"
 )
@@ -41,18 +42,23 @@ type AuthResponse struct {
 	ServerResponse
 }
 
-func Auth() {
+func Auth() bool {
 	jsonData, _ := json.Marshal(map[string]string{"token": config.ServerSettings.AuthKey})
 	bodyResp := SendPostJsonReq(
 		jsonData,
 		config.ServerSettings.MiningPoolServerURL+"/token",
 	)
 
+	if bodyResp == nil {
+		return false
+	}
+
 	var serverResp AuthResponse
 
 	err := json.Unmarshal(bodyResp, &serverResp)
 	if err != nil {
-		mlog.LogFatalStackError(err)
+		mlog.LogError(fmt.Sprintf("Auth json error %e", err))
+		return false
 	}
 
 	if serverResp.User.Id != 0 {
@@ -69,6 +75,7 @@ func Auth() {
 		mlog.LogFatal("Auth failed; invalid token")
 	}
 	mlog.LogPass()
+	return true
 }
 
 type Task struct {
@@ -84,12 +91,16 @@ type GetTasksResponse struct {
 	ServerResponse
 }
 
-func GetTasks() GetTasksResponse {
+func GetTasks() (GetTasksResponse, error) {
 	jsonData, _ := json.Marshal(map[string]string{})
 	bodyResp := SendPostJsonReq(
 		jsonData,
 		config.ServerSettings.MiningPoolServerURL+"/get",
 	)
+
+	if bodyResp == nil {
+		return GetTasksResponse{}, errors.New("no resp")
+	}
 
 	var results GetTasksResponse
 
@@ -99,7 +110,7 @@ func GetTasks() GetTasksResponse {
 		mlog.LogError("bodyResp: " + string(bodyResp))
 	}
 
-	return results
+	return results, nil
 }
 
 type SendHexBocToServerResponse struct {
@@ -124,6 +135,10 @@ func SendHexBocToServer(hexData string, seed string, taskId string) (SendHexBocT
 	)
 
 	var results SendHexBocToServerResponse
+	if bodyResp == nil {
+		return results, errors.New("no response body")
+	}
+
 	if err := json.Unmarshal(bodyResp, &results); err != nil {
 		mlog.LogError(err.Error())
 		mlog.LogError("Can not unmarshal JSON SendHexBocToServer()")

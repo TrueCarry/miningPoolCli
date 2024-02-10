@@ -24,6 +24,7 @@ package initp
 import (
 	"flag"
 	"fmt"
+	"log"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/api"
 	"miningPoolCli/utils/getminer"
@@ -31,7 +32,9 @@ import (
 	"miningPoolCli/utils/mlog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"time"
 )
 
 func InitProgram() []gpuwrk.GPUstruct {
@@ -80,30 +83,95 @@ func InitProgram() []gpuwrk.GPUstruct {
 
 	switch config.OS.OperatingSystem {
 	case config.OSType.Linux:
-		config.MinerGetter.CurrExecName = config.MinerGetter.UbuntuSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.UbuntuSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.UbuntuSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = "./"
 	case config.OSType.Win:
-		config.MinerGetter.CurrExecName = config.MinerGetter.WinSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.WinSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.WinSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = ""
 	case config.OSType.Macos:
-		config.MinerGetter.CurrExecName = config.MinerGetter.MacSettings.ExecutableName
+		config.MinerGetter.CurrExecNameOpenCL = config.MinerGetter.MacSettings.ExecutableName
+		config.MinerGetter.CurrExecNameCuda = config.MinerGetter.MacSettings.ExecutableNameCuda
 		config.MinerGetter.ExecNamePref = "./"
 	}
 
-	config.MinerGetter.StartPath = filepath.Join(
-		config.MinerGetter.ExecNamePref,
-		config.MinerGetter.MinerDirectory,
-		config.MinerGetter.CurrExecName,
-	)
-
-	api.Auth()
+	for {
+		if ok := api.Auth(); ok {
+			break
+		}
+		mlog.LogInfo("Auth attempt not successfull, waiting 5 seconds")
+		time.Sleep(time.Second * 5)
+	}
 
 	getminer.GetMiner()
-	gpusArray := gpuwrk.SearchGpus()
+
+	var allGpus []gpuwrk.GPUstruct
+	knownModels := map[string]struct{}{}
+
+	if config.MinerGetter.CurrExecNameCuda != "" {
+		if gpusArray := gpuwrk.SearchGpusCuda(filepath.Join(
+			config.MinerGetter.ExecNamePref,
+			config.MinerGetter.MinerDirectory,
+			config.MinerGetter.CurrExecNameCuda,
+		)); len(gpusArray) > 0 {
+			for _, gpu := range gpusArray {
+				allGpus = append(allGpus, gpuwrk.GPUstruct{
+					GpuId:      gpu.GpuId,
+					Model:      gpu.Model,
+					PlatformId: gpu.PlatformId,
+					StartPath: filepath.Join(
+						config.MinerGetter.ExecNamePref,
+						config.MinerGetter.MinerDirectory,
+						config.MinerGetter.CurrExecNameCuda,
+					),
+				})
+
+				smRegex := regexp.MustCompile(`^(SM \d\.\d )?(.+)`)
+				matches := smRegex.FindAllStringSubmatch(gpu.Model, -1)
+				if len(matches) == 1 && len(matches[0]) == 3 {
+					knownModels[matches[0][2]] = struct{}{}
+				} else {
+					knownModels[gpu.Model] = struct{}{}
+				}
+			}
+		}
+	}
+
+	if config.MinerGetter.CurrExecNameOpenCL != "" {
+		if gpusArray := gpuwrk.SearchGpusOpenCL(filepath.Join(
+			config.MinerGetter.ExecNamePref,
+			config.MinerGetter.MinerDirectory,
+			config.MinerGetter.CurrExecNameOpenCL,
+		)); len(gpusArray) > 0 {
+			for _, gpu := range gpusArray {
+				if _, ok := knownModels[gpu.Model]; ok {
+					continue
+				}
+
+				allGpus = append(allGpus, gpuwrk.GPUstruct{
+					GpuId:      gpu.GpuId,
+					Model:      gpu.Model,
+					PlatformId: gpu.PlatformId,
+					StartPath: filepath.Join(
+						config.MinerGetter.ExecNamePref,
+						config.MinerGetter.MinerDirectory,
+						config.MinerGetter.CurrExecNameOpenCL,
+					),
+				})
+			}
+		}
+	}
+	// else if gpusArray =
+
+	if len(allGpus) < 1 {
+		log.Fatal("Gpus Not Found")
+		// return gpusArray, errors.New("no any GPUs found")
+	}
 
 	mlog.LogPass()
-	gpuwrk.LogGpuList(gpusArray)
-	mlog.LogInfo("Launching the mining processes...")
+	gpuwrk.LogGpuList(allGpus)
+	mlog.LogInfo(fmt.Sprintf("Launching the mining processes on %d GPUs", len(allGpus)))
 
-	return gpusArray
+	return allGpus
 }

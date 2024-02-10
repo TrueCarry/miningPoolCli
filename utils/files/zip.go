@@ -31,12 +31,13 @@ import (
 )
 
 // Extract ZIP files, but skip all directories in zip
-func ExtractZip(filename string, dst string) {
-	archive, err := zip.OpenReader(filename)
+func ExtractZip(gzipStream io.ReaderAt, size int64, dst string) {
+	archive, err := zip.NewReader(gzipStream, size)
+	// archive, err := zip.OpenReader(filename)
 	if err != nil {
-		mlog.LogFatal("error while opening '" + filename + "'; " + err.Error())
+		mlog.LogFatal("error while opening ''; " + err.Error())
 	}
-	defer archive.Close()
+	// defer archive.Close()
 
 	for _, f := range archive.File {
 		filePath := filepath.Join(dst, f.Name)

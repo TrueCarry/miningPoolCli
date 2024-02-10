@@ -24,11 +24,12 @@ package api
 import (
 	"bytes"
 	"crypto/tls"
-	"github.com/valyala/fasthttp"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/mlog"
 	"strconv"
 	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 type ServerResponse struct {
@@ -77,6 +78,32 @@ func sendPostJsonReqAttempt(jsonData []byte, serverUrl string) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func GetReqAttempt(serverUrl string) ([]byte, error) {
+	httpReq := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(httpReq)
+
+	httpReq.SetRequestURI(serverUrl)
+	httpReq.Header.SetMethod(fasthttp.MethodGet)
+	httpReq.Header.SetContentType("application/json; charset=UTF-8")
+	httpReq.Header.Set("Build-Version", config.BuildVersion)
+
+	httpResp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(httpResp)
+
+	err := proxyClient.DoTimeout(httpReq, httpResp, 5*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	var buffer bytes.Buffer
+	err = httpResp.BodyWriteTo(&buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
 func SendPostJsonReq(jsonData []byte, serverUrl string) []byte {
 	var body []byte = nil
 	for attempts := 0; attempts < 5; attempts++ {
@@ -96,9 +123,9 @@ func SendPostJsonReq(jsonData []byte, serverUrl string) []byte {
 
 		break
 	}
-	if body == nil {
-		mlog.LogFatal("Attempts to send a request have yielded no results :(")
-	}
+	// if body == nil {
+	// 	mlog.LogFatal("Attempts to send a request have yielded no results :(")
+	// }
 
 	return body
 }
