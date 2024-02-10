@@ -77,6 +77,8 @@ func searchGpusWithRegexCuda(execStr string) ([]GPUstruct, error) {
 	}
 	cmd.Wait()
 
+	mlog.LogInfo("CUDA Info: " + stderr.String())
+
 	matches := config.MRgxKit.FindGPUPat.FindAllString(stderr.String(), -1)
 
 	var gpusArray []GPUstruct
@@ -141,6 +143,8 @@ func searchGpusWithRegexOpenCL(execStr string) ([]GPUstruct, error) {
 		mlog.LogFatalStackError(err)
 	}
 	cmd.Wait()
+
+	mlog.LogInfo("OpenCL Info: " + stderr.String())
 
 	matches := config.MRgxKit.FindGPUPat.FindAllString(stderr.String(), -1)
 
