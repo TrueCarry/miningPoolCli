@@ -82,7 +82,7 @@ func startTask(i int, task api.Task) {
 						lineWithProof := lines[len(lines)-2]
 						hexData, err := hex.DecodeString(lineWithProof)
 						if err != nil {
-							mlog.LogError("Decoding proof error: " + err.Error())
+							mlog.LogError("Decoding proof error: " + strconv.Itoa(len(lineWithProof)) + " " + err.Error())
 							return
 						}
 
