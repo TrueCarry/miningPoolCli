@@ -41,7 +41,7 @@ func startTask(i int, task api.Task) {
 		task.Giver,
 		pathToBoc,
 	}
-	cmd := exec.Command(config.MinerGetter.StartPath, minerArgs...)
+	cmd := exec.Command(gpuGoroutines[i].GpuData.StartPath, minerArgs...)
 
 	gpuGoroutines[i].ProcStderr.Reset()
 	cmd.Stderr = &gpuGoroutines[i].ProcStderr
@@ -163,7 +163,7 @@ func main() {
 	}
 
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 		gpuwrk.CalcHashrate(&gpuGoroutines)
 	}
 }

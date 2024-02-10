@@ -35,6 +35,7 @@ type GPUstruct struct {
 	GpuId      int    `json:"device_id"`
 	Model      string `json:"device_name"`
 	PlatformId int    `json:"platform_id"`
+	StartPath  string `json:"start_path"`
 }
 
 type GpuGoroutine struct {

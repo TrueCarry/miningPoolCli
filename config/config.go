@@ -46,7 +46,7 @@ type minerGetter struct {
 	ExecNamePref       string // "./" in linux; "" in win
 	CurrExecNameOpenCL string // current ExecutableName (depends on OS)
 	CurrExecNameCuda   string // current ExecutableName (depends on OS)
-	StartPath          string // depends on OS
+	// StartPath          string // depends on OS
 }
 
 type os struct {
