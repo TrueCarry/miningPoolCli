@@ -79,10 +79,11 @@ func startTask(i int, task api.Task) {
 			if strings.Contains(lines[len(lines)-3], "FOUND!") {
 				if !killedByNotActual {
 					go func() {
-						hexData := make([]byte, len(lines[len(lines)-2])/2)
-						_, err := hex.Decode(hexData, []byte(lines[len(lines)-2]))
+						lineWithProof := lines[len(lines)-2]
+						hexData, err := hex.DecodeString(lineWithProof)
 						if err != nil {
-							panic(err)
+							mlog.LogError("Decoding proof error: " + err.Error())
+							return
 						}
 
 						body := cell.BeginCell().MustStoreBinarySnake(hexData[2:]).EndCell()
