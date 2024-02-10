@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/rand"
 	"miningPoolCli/config"
 	"miningPoolCli/utils/api"
@@ -73,7 +72,6 @@ func startTask(i int, task api.Task) {
 		done = true
 
 		out := gpuGoroutines[i].ProcStderr.String()
-		log.Println("out", out)
 		lines := strings.Split(out, "\n")
 		if len(lines) > 3 {
 			if strings.Contains(lines[len(lines)-3], "FOUND!") {
