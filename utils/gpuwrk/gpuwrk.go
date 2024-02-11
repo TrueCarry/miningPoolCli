@@ -160,6 +160,34 @@ func searchGpusWithRegexOpenCL(execStr string) ([]GPUstruct, error) {
 			continue
 		}
 
+		amdApuList := []string{
+			"gfx700",
+			"gfx703",
+			"gfx705",
+			"gfx801",
+			"gfx810",
+			"gfx902",
+			"gfx909",
+			"gfx90c",
+			"gfx1013",
+			"gfx1033",
+			"gfx1035",
+			"gfx1036",
+			"gfx1103",
+			"gfx1150",
+			"gfx1151",
+		}
+		amdApuFound := false
+		for _, amgGpu := range amdApuList {
+			if strings.Contains(strings.ToLower(gpuModel), amgGpu) {
+				amdApuFound = true
+				break
+			}
+		}
+		if amdApuFound {
+			continue
+		}
+
 		panddId := config.MRgxKit.FindIntIds.FindAllString(v, -1)
 		if len(panddId) < 2 {
 			mlog.LogInfo("warn: can't search GPU - len(panddId) < 2; panddId: " + strings.Join(panddId, ", ") + "; v: " + v)
